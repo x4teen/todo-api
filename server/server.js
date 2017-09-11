@@ -1,5 +1,6 @@
 var express = require('express');
 var bodyParser = require('body-parser');
+var _ = require('lodash');
 
 var ObjectID = require ('mongoose').Types.ObjectId;
 var {mongoose} = require('./db/mongoose');
@@ -11,6 +12,9 @@ const port = process.env.PORT||3000;
 
 app.use(bodyParser.json());
 
+
+
+/** ROUTE - POST:baseurl/todos - Adds a single todo item */
 app.post('/todos', (req, res) => {
     console.log(req.body);
     var todo = new Todo({
@@ -24,18 +28,26 @@ app.post('/todos', (req, res) => {
     todo.save().then((doc) =>{
         res.send(doc);
     }, (e) => {
-        res.status(400).send(e);
+        res.status(400).send();
     });    
 });
+/** END OF ROUTE - POST:baseurl/todos */
 
+
+
+/** ROUTE - GET:baseurl/todos - returns all todo items */
 app.get('/todos', (req, res) => {
     Todo.find().then((todos) =>{
         res.send({todos});
     })
 }, (e) => {
-    res.status(400).send(e);
+    res.status(400).send();
 });
+/** END OF ROUTE - GET:baseurl/todos */
 
+
+
+/** ROUTE - GET:baseurl/todos/id - returns one todo item with stated id */
 app.get('/todos/:id', (req, res) => {
     var id = req.params.id;
 
@@ -51,11 +63,68 @@ app.get('/todos/:id', (req, res) => {
         res.send(todo);
     }).catch((e) => res.status(400).send());
 });
+/** END OF ROUTE - GET:baseurl/todos/id */
 
 
+
+/** ROUTE - DELETE:baseurl/todos/id - deletes one todo item with stated id */
+app.delete('/todos/:id', (req, res) =>{
+    var id = req.params.id; //Get the id
+
+//Validate the id
+    if (!ObjectID.isValid(id)) {
+        res.status(400).send();
+    };
+
+//Delete the object
+    Todo.findByIdAndRemove(id).then((todo) => {
+        if (!todo) {
+            return  res.status(404).send();
+        };
+        res.send(todo);
+    }).catch((e) => res.status(400).send());
+
+}); 
+/** END OF ROUTE - DELETE:baseurl/todos/id  */
+
+
+
+/** ROUTE - PATCH:baseurl/todos/id - updates one todo item with stated id */
+app.patch('/todos/:id', (req, res) => {
+    var id = req.params.id; //Get the id
+    var body = _.pick(req.body, ['text', 'completed', 'group', 'priority']);
+
+    //Validate the id
+    if (!ObjectID.isValid(id)) {
+        res.status(400).send();
+    };
+
+    //update completed field
+    if (_.isBoolean(body.completed) && body.completed) {
+        body.completedAt = new Date().getTime();
+    } else {
+        body.completed = false;
+        body.completedAt = null;
+    };
+
+    //update database
+    Todo.findByIdAndUpdate(id, {$set: body},
+        {new: true}).then((todo) => {
+        if (!todo) {
+            return  res.status(404).send();
+        };
+        res.send(todo);
+    }).catch((e) => res.status(400).send());
+
+});
+/** END OF ROUTE - PATCH:baseurl/todos/id */
+
+
+
+/** START THE WEB SERVER */
 app.listen(port, ()=>{
     console.log(`started on port ${port}`);
-});
+}); 
 
 
 
